@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import React, { useState, useRef, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvent } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { create } from 'zustand';
 import L from 'leaflet';
@@ -107,11 +107,22 @@ const useStore = create<State>((set: any) => {
   };
 });
 
+// 커스텀 마커 아이콘 (초록색)
+const greenIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
 function App() {
   const { topics, places, addTopic, addPlace } = useStore();
   const [selectedTopic, setSelectedTopic] = useState<number>(topics[0]?.id || 1);
   const [newTopic, setNewTopic] = useState('');
-  const [newPlace, setNewPlace] = useState<{ name: string; description: string; lat: string; lng: string }>({ name: '', description: '', lat: '', lng: '' });
+  const [newPlace, setNewPlace] = useState<{ name: string; description: string }>({ name: '', description: '' });
+  const [selectedLatLng, setSelectedLatLng] = useState<{ lat: number; lng: number } | null>(null);
 
   // 필터링된 장소
   const filteredPlaces = places.filter((p: Place) => p.topicId === selectedTopic);
@@ -119,15 +130,16 @@ function App() {
   // 장소 추가 핸들러
   const handleAddPlace = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPlace.name || !newPlace.lat || !newPlace.lng) return;
+    if (!newPlace.name || !selectedLatLng) return;
     addPlace({
       name: newPlace.name,
       description: newPlace.description,
-      lat: parseFloat(newPlace.lat),
-      lng: parseFloat(newPlace.lng),
+      lat: selectedLatLng.lat,
+      lng: selectedLatLng.lng,
       topicId: selectedTopic,
     });
-    setNewPlace({ name: '', description: '', lat: '', lng: '' });
+    setNewPlace({ name: '', description: '' });
+    setSelectedLatLng(null);
   };
 
   // 주제 추가 핸들러
@@ -137,6 +149,14 @@ function App() {
     addTopic(newTopic);
     setNewTopic('');
   };
+
+  // 지도 클릭 이벤트 핸들러 컴포넌트
+  function MapClickHandler() {
+    useMapEvent('click', (e) => {
+      setSelectedLatLng({ lat: e.latlng.lat, lng: e.latlng.lng });
+    });
+    return null;
+  }
 
   return (
     <div className="App">
@@ -166,6 +186,9 @@ function App() {
           </div>
           <form onSubmit={handleAddPlace} className="place-form">
             <h3>장소 추가</h3>
+            <div style={{ fontSize: '0.97rem', color: '#3a7afe', marginBottom: 6 }}>
+              지도에서 위치를 먼저 선택하세요!
+            </div>
             <input
               value={newPlace.name}
               onChange={(e) => setNewPlace({ ...newPlace, name: e.target.value })}
@@ -177,31 +200,27 @@ function App() {
               onChange={(e) => setNewPlace({ ...newPlace, description: e.target.value })}
               placeholder="설명"
             />
-            <input
-              value={newPlace.lat}
-              onChange={(e) => setNewPlace({ ...newPlace, lat: e.target.value })}
-              placeholder="위도(lat)"
-              required
-              type="number"
-              step="any"
-            />
-            <input
-              value={newPlace.lng}
-              onChange={(e) => setNewPlace({ ...newPlace, lng: e.target.value })}
-              placeholder="경도(lng)"
-              required
-              type="number"
-              step="any"
-            />
-            <button type="submit">장소 추가</button>
+            {/* 위도/경도 입력란 제거 */}
+            {selectedLatLng && (
+              <div style={{ fontSize: '0.92rem', color: '#888', marginTop: 2 }}>
+                선택 위치: {selectedLatLng.lat.toFixed(5)}, {selectedLatLng.lng.toFixed(5)}
+              </div>
+            )}
+            <button type="submit" disabled={!selectedLatLng}>장소 추가</button>
           </form>
         </section>
         <section className="map-section">
-          <MapContainer center={[37.5665, 126.978] as [number, number]} zoom={13} style={{ height: '100%', width: '100%' }}>
+          <MapContainer
+            center={[37.5665, 126.978] as [number, number]}
+            zoom={13}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <MapClickHandler />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            {/* 기존 장소 마커 */}
             {filteredPlaces.map((place: Place) => (
               <Marker key={place.id} position={[place.lat, place.lng]}>
                 <Popup>
@@ -211,6 +230,12 @@ function App() {
                 </Popup>
               </Marker>
             ))}
+            {/* 임시 마커 */}
+            {selectedLatLng && (
+              <Marker position={[selectedLatLng.lat, selectedLatLng.lng]} icon={greenIcon}>
+                <Popup>여기에 장소를 추가할 수 있습니다!</Popup>
+              </Marker>
+            )}
           </MapContainer>
         </section>
       </div>
