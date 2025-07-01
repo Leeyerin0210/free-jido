@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvent } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvent, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { create } from 'zustand';
 import L from 'leaflet';
@@ -71,9 +71,9 @@ function getRandomPlace(topicId: number): Place {
       '성인만 이용 가능'
     ]
   };
-  // 서울시 중심부 기준 랜덤 좌표
-  const lat = 37.55 + Math.random() * 0.08; // 37.55 ~ 37.63
-  const lng = 126.95 + Math.random() * 0.08; // 126.95 ~ 127.03
+  // 서울시 전역(잠실 포함) 기준 랜덤 좌표 (범위 5배 확대)
+  const lat = 37.45 + Math.random() * 0.4; // 37.45 ~ 37.85
+  const lng = 126.80 + Math.random() * 0.4; // 126.80 ~ 127.20
   return {
     id: placeId++,
     name: `${names[Math.floor(Math.random() * names.length)]} ${Math.floor(Math.random() * 1000)}`,
@@ -117,12 +117,51 @@ const greenIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
+// 지도 이동 핸들러 컴포넌트
+function MapMoveHandler({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, zoom, { animate: true });
+  }, [center[0], center[1], zoom]);
+  return null;
+}
+
 function App() {
   const { topics, places, addTopic, addPlace } = useStore();
   const [selectedTopic, setSelectedTopic] = useState<number>(topics[0]?.id || 1);
   const [newTopic, setNewTopic] = useState('');
   const [newPlace, setNewPlace] = useState<{ name: string; description: string }>({ name: '', description: '' });
   const [selectedLatLng, setSelectedLatLng] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([37.5665, 126.978]);
+  const [mapZoom, setMapZoom] = useState<number>(13);
+
+  // 앱 로드시 현 위치 요청
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setUserLocation({ lat: latitude, lng: longitude });
+          setMapCenter([latitude, longitude]);
+          setMapZoom(16);
+        },
+        () => {
+          setUserLocation(null); // 권한 거부/실패 시
+          setMapCenter([37.5665, 126.978]);
+          setMapZoom(13);
+        }
+      );
+    }
+  }, []);
+
+  // 내 위치로 이동 버튼
+  const handleMoveToMyLocation = () => {
+    if (userLocation) {
+      setMapCenter([userLocation.lat, userLocation.lng]); // 항상 새 배열 할당
+      setMapZoom((z) => z === 16 ? 16.0001 : 16); // zoom도 강제로 바꿔줌(같은 값이어도 리렌더)
+    }
+  };
 
   // 필터링된 장소
   const filteredPlaces = places.filter((p: Place) => p.topicId === selectedTopic);
@@ -165,6 +204,7 @@ function App() {
       </header>
       <div className="main-content">
         <section className="sidebar">
+          <button onClick={handleMoveToMyLocation} style={{marginBottom: 16, background: '#3a7afe', color: '#fff', border: 'none', borderRadius: 8, padding: '0.6rem 1.1rem', fontWeight: 600, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 2px 8px #3a7afe22', transition: 'background 0.2s'}}>내 위치로 이동</button>
           <form onSubmit={handleAddTopic} className="topic-form">
             <input
               value={newTopic}
@@ -211,15 +251,24 @@ function App() {
         </section>
         <section className="map-section">
           <MapContainer
-            center={[37.5665, 126.978] as [number, number]}
+            center={[37.5665, 126.978]}
             zoom={13}
             style={{ height: '100%', width: '100%' }}
           >
+            <MapMoveHandler center={mapCenter} zoom={mapZoom} />
             <MapClickHandler />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            {/* 내 위치 원 */}
+            {userLocation && (
+              <Circle
+                center={[userLocation.lat, userLocation.lng]}
+                radius={30}
+                pathOptions={{ color: '#3a7afe', fillColor: '#3a7afe', fillOpacity: 0.3 }}
+              />
+            )}
             {/* 기존 장소 마커 */}
             {filteredPlaces.map((place: Place) => (
               <Marker key={place.id} position={[place.lat, place.lng]}>
