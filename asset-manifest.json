@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/free-jido/static/css/main.debc22bd.css",
+    "main.js": "/free-jido/static/js/main.a895b94d.js",
+    "static/js/453.20d67de6.chunk.js": "/free-jido/static/js/453.20d67de6.chunk.js",
+    "index.html": "/free-jido/index.html",
+    "main.debc22bd.css.map": "/free-jido/static/css/main.debc22bd.css.map",
+    "main.a895b94d.js.map": "/free-jido/static/js/main.a895b94d.js.map",
+    "453.20d67de6.chunk.js.map": "/free-jido/static/js/453.20d67de6.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.debc22bd.css",
+    "static/js/main.a895b94d.js"
+  ]
+}
