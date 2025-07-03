@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/free-jido/static/css/main.debc22bd.css",
-    "main.js": "/free-jido/static/js/main.eb5fade5.js",
+    "main.js": "/free-jido/static/js/main.3751469c.js",
     "static/js/453.20d67de6.chunk.js": "/free-jido/static/js/453.20d67de6.chunk.js",
     "index.html": "/free-jido/index.html",
     "main.debc22bd.css.map": "/free-jido/static/css/main.debc22bd.css.map",
-    "main.eb5fade5.js.map": "/free-jido/static/js/main.eb5fade5.js.map",
+    "main.3751469c.js.map": "/free-jido/static/js/main.3751469c.js.map",
     "453.20d67de6.chunk.js.map": "/free-jido/static/js/453.20d67de6.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.debc22bd.css",
-    "static/js/main.eb5fade5.js"
+    "static/js/main.3751469c.js"
   ]
 }
