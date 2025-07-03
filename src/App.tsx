@@ -225,7 +225,7 @@ function getInitials(str: string) {
 
 function App() {
   const { topics, places, addTopic, addPlace, likePlace, dislikePlace, flagPlace, unlikePlace, undislikePlace, addComment, likeComment, unlikeComment } = useStore();
-  const [selectedTopic, setSelectedTopic] = useState<number>(topics[0]?.id || 1);
+  const [selectedTopic, setSelectedTopic] = useState<number | undefined>(undefined);
   const [topicSearch, setTopicSearch] = useState('');
   const [newPlace, setNewPlace] = useState<{ name: string; description: string }>({ name: '', description: '' });
   const [selectedLatLng, setSelectedLatLng] = useState<{ lat: number; lng: number } | null>(null);
@@ -281,7 +281,7 @@ function App() {
   };
 
   // 단일 주제 필터링
-  const filteredPlaces = places.filter((p: Place) => p.topicId === selectedTopic);
+  const filteredPlaces = selectedTopic ? places.filter((p: Place) => p.topicId === selectedTopic) : [];
 
   // 내 위치와의 거리 계산 함수
   function getDistance(lat1:number, lng1:number, lat2:number, lng2:number) {
@@ -309,7 +309,7 @@ function App() {
   // 장소 추가 핸들러
   const handleAddPlace = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPlace.name || !selectedLatLng) return;
+    if (!newPlace.name || !selectedLatLng || !selectedTopic) return;
     addPlace({
       name: newPlace.name,
       description: newPlace.description,
@@ -387,7 +387,7 @@ function App() {
   return (
     <div className="App" style={{height:'100vh',display:'flex',flexDirection:'column'}}>
       <header style={{display:'flex',alignItems:'center',padding:'0 2.5rem',height:72,background:'#3a7afe',color:'#fff',boxShadow:'0 2px 8px #3a7afe22',position:'relative',fontSize:'1rem'}}>
-        <span className="logo" style={{fontSize:'1.25rem',fontWeight:700,letterSpacing:'-1px',marginRight:24}}>{topics.find(t=>t.id===selectedTopic)?.name || '프리지도'}</span>
+        <span className="logo" style={{fontSize:'1.25rem',fontWeight:700,letterSpacing:'-1px',marginRight:24}}>{selectedTopic ? (topics.find(t=>t.id===selectedTopic)?.name) : '프리지도'}</span>
         <div style={{position:'relative',marginLeft:'auto',marginRight:24,width:260}}>
           <input
             ref={searchInputRef}
@@ -444,76 +444,86 @@ function App() {
       )}
       <div className="main-content" style={{flex:1,display:'flex',height:'100%',minHeight:0}}>
         <section className="sidebar" style={{display:'flex',flexDirection:'column',height:'100%',minWidth:260,background:'#fff',boxShadow:'1px 0 8px #0001'}}>
-          {/* 맨 위: 정렬 토글 (고정) */}
-          <div style={{padding:'18px 0 8px 0',background:'#fff',zIndex:2}}>
-            <div style={{display:'flex',gap:8}}>
-              <button onClick={()=>setSortOption('recommend')} style={{flex:1,padding:'0.4rem 0',border:'none',borderRadius:7,background:sortOption==='recommend'?'#3a7afe':'#f3f6fa',color:sortOption==='recommend'?'#fff':'#222',fontWeight:sortOption==='recommend'?700:500,cursor:'pointer'}}>추천순</button>
-              <button onClick={()=>setSortOption('distance')} style={{flex:1,padding:'0.4rem 0',border:'none',borderRadius:7,background:sortOption==='distance'?'#3a7afe':'#f3f6fa',color:sortOption==='distance'?'#fff':'#222',fontWeight:sortOption==='distance'?700:500,cursor:'pointer'}}>거리순</button>
-            </div>
-          </div>
-          {/* 장소 추천 목록 (스크롤 영역) */}
-          <div style={{flex:1,overflowY:'auto',minHeight:0}}>
-            {sortedPlaces.length === 0 ? (
-              <div style={{color:'#888',padding:'1.5rem 0',textAlign:'center'}}>추천할 장소가 없습니다.</div>
-            ) : (
-              <ul style={{listStyle:'none',padding:0,margin:0}}>
-                {sortedPlaces.map((place, idx) => {
-                  let distance = null;
-                  if (sortOption==='distance' && userLocation) {
-                    distance = getDistance(userLocation.lat, userLocation.lng, place.lat, place.lng);
-                  }
-                  return (
-                    <li key={place.id} style={{padding:'0.7rem 0.2rem',borderBottom:'1px solid #f0f0f0',display:'flex',alignItems:'center',gap:8}}>
-                      <div style={{flex:1}}>
-                        <div style={{fontWeight:600,fontSize:'1.04em'}}>{place.name}</div>
-                        <div style={{fontSize:'0.97em',color:'#3a7afe',marginBottom:2}}>{place.address}</div>
-                        <div style={{fontSize:'0.93em',color:'#888'}}>{place.description}</div>
-                        <div style={{fontSize:'0.93em',color:'#888',marginTop:2}}>
-                          👍 {place.likes||0}
-                          {distance!==null && (
-                            <span style={{marginLeft:8}}>
-                              {distance<1000 ? `${distance.toFixed(0)}m` : `${(distance/1000).toFixed(2)}km`} 거리
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {/* 거리순인데 내 위치 없을 때 안내 */}
-            {sortOption==='distance' && !userLocation && (
-              <div style={{color:'#e67e22',fontSize:'0.98em',marginTop:10}}>내 위치 정보가 필요합니다.</div>
-            )}
-          </div>
-          {/* 맨 아래: 내 장소 추가하기 (고정) */}
-          <div style={{borderTop:'1px solid #f0f0f0',padding:'1rem 0 0 0',background:'#fff',zIndex:2}}>
-            <form onSubmit={handleAddPlace} className="place-form">
-              <h3>장소 추가</h3>
-              <div style={{ fontSize: '0.97rem', color: '#3a7afe', marginBottom: 6 }}>
-                지도에서 위치를 먼저 선택하세요!
-              </div>
-              <input
-                value={newPlace.name}
-                onChange={(e) => setNewPlace({ ...newPlace, name: e.target.value })}
-                placeholder="장소명"
-                required
-              />
-              <input
-                value={newPlace.description}
-                onChange={(e) => setNewPlace({ ...newPlace, description: e.target.value })}
-                placeholder="설명"
-              />
-              {/* 위도/경도 입력란 제거 */}
-              {selectedLatLng && (
-                <div style={{ fontSize: '0.92rem', color: '#888', marginTop: 2 }}>
-                  선택 위치: {selectedLatLng.lat.toFixed(5)}, {selectedLatLng.lng.toFixed(5)}
+          {selectedTopic ? (
+            <>
+              <div style={{padding:'18px 0 8px 0',background:'#fff',zIndex:2}}>
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={()=>setSortOption('recommend')} style={{flex:1,padding:'0.4rem 0',border:'none',borderRadius:7,background:sortOption==='recommend'?'#3a7afe':'#f3f6fa',color:sortOption==='recommend'?'#fff':'#222',fontWeight:sortOption==='recommend'?700:500,cursor:'pointer'}}>추천순</button>
+                  <button onClick={()=>setSortOption('distance')} style={{flex:1,padding:'0.4rem 0',border:'none',borderRadius:7,background:sortOption==='distance'?'#3a7afe':'#f3f6fa',color:sortOption==='distance'?'#fff':'#222',fontWeight:sortOption==='distance'?700:500,cursor:'pointer'}}>거리순</button>
                 </div>
-              )}
-              <button type="submit" disabled={!selectedLatLng}>장소 추가</button>
-            </form>
-          </div>
+              </div>
+              {/* 장소 추천 목록 (스크롤 영역) */}
+              <div style={{flex:1,overflowY:'auto',minHeight:0}}>
+                {sortedPlaces.length === 0 ? (
+                  <div style={{color:'#888',padding:'1.5rem 0',textAlign:'center'}}>추천할 장소가 없습니다.</div>
+                ) : (
+                  <ul style={{listStyle:'none',padding:0,margin:0}}>
+                    {sortedPlaces.map((place, idx) => {
+                      let distance = null;
+                      if (sortOption==='distance' && userLocation) {
+                        distance = getDistance(userLocation.lat, userLocation.lng, place.lat, place.lng);
+                      }
+                      return (
+                        <li key={place.id} style={{padding:'0.7rem 0.2rem',borderBottom:'1px solid #f0f0f0',display:'flex',alignItems:'center',gap:8}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontWeight:600,fontSize:'1.04em'}}>{place.name}</div>
+                            <div style={{fontSize:'0.97em',color:'#3a7afe',marginBottom:2}}>{place.address}</div>
+                            <div style={{fontSize:'0.93em',color:'#888'}}>{place.description}</div>
+                            <div style={{fontSize:'0.93em',color:'#888',marginTop:2}}>
+                              👍 {place.likes||0}
+                              {distance!==null && (
+                                <span style={{marginLeft:8}}>
+                                  {distance<1000 ? `${distance.toFixed(0)}m` : `${(distance/1000).toFixed(2)}km`} 거리
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {/* 거리순인데 내 위치 없을 때 안내 */}
+                {sortOption==='distance' && !userLocation && (
+                  <div style={{color:'#e67e22',fontSize:'0.98em',marginTop:10}}>내 위치 정보가 필요합니다.</div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',color:'#3a7afe',fontWeight:600,fontSize:'1.08em',opacity:0.85}}>
+              <span style={{fontSize:'2.2em',marginBottom:8}}>🧭</span>
+              주제를 선택해 주세요
+            </div>
+          )}
+          {/* 맨 아래: 내 장소 추가하기 (고정, 주제 선택 시에만) */}
+          {selectedTopic && (
+            <div style={{borderTop:'1px solid #f0f0f0',padding:'1rem 0 0 0',background:'#fff',zIndex:2}}>
+              <form onSubmit={handleAddPlace} className="place-form">
+                <h3>장소 추가</h3>
+                <div style={{ fontSize: '0.97rem', color: '#3a7afe', marginBottom: 6 }}>
+                  지도에서 위치를 먼저 선택하세요!
+                </div>
+                <input
+                  value={newPlace.name}
+                  onChange={(e) => setNewPlace({ ...newPlace, name: e.target.value })}
+                  placeholder="장소명"
+                  required
+                />
+                <input
+                  value={newPlace.description}
+                  onChange={(e) => setNewPlace({ ...newPlace, description: e.target.value })}
+                  placeholder="설명"
+                />
+                {/* 위도/경도 입력란 제거 */}
+                {selectedLatLng && (
+                  <div style={{ fontSize: '0.92rem', color: '#888', marginTop: 2 }}>
+                    선택 위치: {selectedLatLng.lat.toFixed(5)}, {selectedLatLng.lng.toFixed(5)}
+                  </div>
+                )}
+                <button type="submit" disabled={!selectedLatLng || !selectedTopic}>장소 추가</button>
+              </form>
+            </div>
+          )}
         </section>
         <section className="map-section" style={{flex:1,position:'relative',height:'100%'}}>
           <MapContainer
